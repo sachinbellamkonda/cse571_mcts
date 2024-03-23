@@ -15,6 +15,8 @@
 from util import manhattanDistance
 from game import Directions
 import random, util
+from math import sqrt
+import math
 
 from game import Agent
 
@@ -329,3 +331,92 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         return bestAction
         util.raiseNotDefined()
 
+
+class MCTSTreeNode:
+    def __init__(self,state,parent,action):
+        self.state = state
+        self.legalActions = state.getLegalActions(0)
+        self.childStates = []
+        self.parent = parent
+        self.noofTimesVisited = 0
+        self.reward = 0.0
+        self.isFullyExpanded = False
+        self.action = action
+
+
+class MonteCarloTreeSearchAgent(MultiAgentSearchAgent):
+    """
+    Our MCTS Search Agent Class Implementation
+    """
+    def __init__(self,noofIterations=10000):
+        self.iterations = noofIterations
+    
+    def getUCTValue(self,q,n,N,c):
+        return ((q/(n+1) + c * sqrt(2* math.log(N+1)/(n+1))))
+
+    def getAction(self, gameState):
+        if not gameState.getLegalActions(0):
+            return Directions.STOP
+        t0 = MCTSTreeNode(gameState,None,None)
+        for iter in range(self.iterations):
+            t1 = self.treePolicy(t0)
+            delta = self.defaultPolicy(t1.state)
+            self.backUpData(t1,delta)
+        bestChildAction= self.bestChildAction(t0)
+        # print(bestChildAction)
+        if bestChildAction  not in gameState.getLegalActions(0):
+            return random.choice(gameState.getLegalActions(0))
+        return bestChildAction
+
+    
+    def treePolicy(self,node):
+        while  (not node.state.isWin()) and (not node.state.isLose()):
+            if not node.isFullyExpanded:
+                return self.expandNode(node)
+            else:
+                node = self.bestChild(node,0.5)
+        return node
+    
+    def expandNode(self,node):
+        randomChildAction = random.choice(node.legalActions)
+        node.legalActions.remove(randomChildAction)
+        if len(node.legalActions)==0:
+            node.isFullyExpanded = True
+        newState = node.state.generateSuccessor(0,randomChildAction)
+        newChildNode = MCTSTreeNode(newState,node,randomChildAction)
+        node.childStates.append(newChildNode)
+        return newChildNode
+    
+    def defaultPolicy(self,state):
+        while (not state.isWin()) and (not state.isLose()):
+            randomChildAction = random.choice(state.getLegalActions(0))
+            newChildState = state.generateSuccessor(0,randomChildAction)
+            state = newChildState
+        return state.getScore()
+    
+    def backUpData(self, node, delta):
+        while node is not None:
+            node.noofTimesVisited +=1
+            node.reward +=  delta
+            node = node.parent
+
+
+    def bestChild(self,node,c):
+        maxUCTValue = float('-inf')
+        bestChild = None
+        for child in node.childStates:
+            uctValue = self.getUCTValue(child.reward,child.noofTimesVisited,node.noofTimesVisited,c)
+            if uctValue > maxUCTValue:
+                maxUCTValue = uctValue
+                bestChild = child
+        return bestChild
+    
+    def bestChildAction(self,node):
+        maxUCTValue = float('-inf')
+        bestAction = None
+        for child in node.childStates:
+            uctValue = self.getUCTValue(child.reward,child.noofTimesVisited,node.noofTimesVisited,0)
+            if uctValue > maxUCTValue:
+                maxUCTValue = uctValue
+                bestAction = child.action
+        return bestAction
