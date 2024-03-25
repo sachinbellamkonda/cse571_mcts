@@ -331,6 +331,120 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         return bestAction
         util.raiseNotDefined()
 
+class MCTSAgent(MultiAgentSearchAgent):
+
+    def __init__(self,noofIterations=5000):
+        self.iterations = noofIterations
+    
+    def getUCTValue(self,q,n,N,c):
+        return ((q/(n+1) + c * sqrt(math.log(N+1)/(n+1))))
+
+    def getAction(self, gameState):
+        if not gameState.getLegalActions(0):
+            return Directions.STOP
+        t0 = MCTSTreeNode(gameState,None,None)
+        for iter in range(self.iterations):
+            t1 = self.treePolicy(t0)
+            delta = self.defaultPolicy(t1.state)
+            self.backUpData(t1,delta)
+        bestChildAction= self.bestChildAction(t0)
+        # print(bestChildAction)
+        if bestChildAction  not in gameState.getLegalActions(0):
+            return random.choice(gameState.getLegalActions(0))
+        return bestChildAction
+
+    
+    def treePolicy(self,node):
+        while  (not node.state.isWin()) and (not node.state.isLose()):
+            if not node.isFullyExpanded:
+                return self.expandNode(node)
+            else:
+                node = self.bestChild(node,2)
+        return node
+    
+    def expandNode(self,node):
+        randomChildAction = random.choice(node.legalActions)
+        node.legalActions.remove(randomChildAction)
+        if len(node.legalActions)==0:
+            node.isFullyExpanded = True
+        newState = node.state.generateSuccessor(0,randomChildAction)
+        newChildNode = MCTSTreeNode(newState,node,randomChildAction)
+        node.childStates.append(newChildNode)
+        return newChildNode
+    
+    def defaultPolicy(self,state):
+        noofAgents = state.getNumAgents()
+        isTerminalState =False
+        while  isTerminalState:
+            for i in range(noofAgents):
+                isTerminalState = state.isWin() or state.isLose()
+                if isTerminalState:
+                    break
+                if i>0:
+                    randomChildAction = random.choice(state.getLegalActions(i))
+                    state = state.generateSuccessor(i,randomChildAction)
+                else:
+                    childAction = self.goodChildAction(state)
+                    state = state.generateSuccessor(i,childAction)
+        return state.getScore()
+    
+    def backUpData(self, node, delta):
+        while node is not None:
+            node.noofTimesVisited +=1
+            node.reward +=  delta
+            node = node.parent
+
+
+    def bestChild(self,node,c):
+        maxUCTValue = float('-inf')
+        bestChild = None
+        for child in node.childStates:
+            uctValue = self.getUCTValue(child.reward,child.noofTimesVisited,node.noofTimesVisited,c)
+            if uctValue > maxUCTValue:
+                maxUCTValue = uctValue
+                bestChild = child
+        return bestChild
+    
+    def bestChildAction(self,node):
+        maxUCTValue = float('-inf')
+        bestAction = None
+        for child in node.childStates:
+            uctValue = self.getUCTValue(child.reward,child.noofTimesVisited,node.noofTimesVisited,0)
+            if uctValue > maxUCTValue:
+                maxUCTValue = uctValue
+                bestAction = child.action
+        return bestAction
+    def goodChildAction(self,state):
+        legalMoves = state.getLegalActions(0)
+
+        # Choose one of the best actions
+        scores = [self.evaluationFunction(state, action) for action in legalMoves]
+        bestScore = max(scores)
+        bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
+        chosenIndex = random.choice(bestIndices) # Pick randomly among the best
+
+        "Add more of your code here if you want to"
+
+        return legalMoves[chosenIndex]
+    def evaluationFunction(self, currentGameState, action):
+        from random import randint
+        from util import manhattanDistance as md
+
+        # Useful information extracted from GameState (pacman.py)
+        pacmanPos = currentGameState.getPacmanPosition()
+        foodMatrix = currentGameState.getFood()
+        foodList = foodMatrix.asList()
+        successorGameScore = currentGameState.getScore()
+
+        # Actual calculations start here
+        numberOfRemainingFood = len(foodList)
+
+        distanceFromFoods = [md(pacmanPos, newFoodPos) for newFoodPos in foodList]
+        distanceFromClosestFood = 0 if (len(distanceFromFoods) == 0) else min(distanceFromFoods)
+
+        finalScore = successorGameScore - (50 * numberOfRemainingFood) - (5 * distanceFromClosestFood)  + randint(0,1)
+        return finalScore
+
 
 class MCTSTreeNode:
     def __init__(self,state,parent,action):
@@ -348,7 +462,7 @@ class MonteCarloTreeSearchAgent(MultiAgentSearchAgent):
     """
     Our MCTS Search Agent Class Implementation
     """
-    def __init__(self,noofIterations=10000):
+    def __init__(self,noofIterations=1000):
         self.iterations = noofIterations
     
     def getUCTValue(self,q,n,N,c):
@@ -374,7 +488,7 @@ class MonteCarloTreeSearchAgent(MultiAgentSearchAgent):
             if not node.isFullyExpanded:
                 return self.expandNode(node)
             else:
-                node = self.bestChild(node,0.5)
+                node = self.bestChild(node,1)
         return node
     
     def expandNode(self,node):
@@ -388,10 +502,15 @@ class MonteCarloTreeSearchAgent(MultiAgentSearchAgent):
         return newChildNode
     
     def defaultPolicy(self,state):
-        while (not state.isWin()) and (not state.isLose()):
-            randomChildAction = random.choice(state.getLegalActions(0))
-            newChildState = state.generateSuccessor(0,randomChildAction)
-            state = newChildState
+        noofAgents = state.getNumAgents()
+        isTerminalState =False
+        while  isTerminalState:
+            for i in range(noofAgents):
+                isTerminalState = state.isWin() or state.isLose()
+                if isTerminalState:
+                    break
+                randomChildAction = random.choice(state.getLegalActions(i))
+                state = state.generateSuccessor(i,randomChildAction)
         return state.getScore()
     
     def backUpData(self, node, delta):
