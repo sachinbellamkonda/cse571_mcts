@@ -331,10 +331,11 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         return bestAction
         util.raiseNotDefined()
 
-class MCTSAgent(MultiAgentSearchAgent):
+class BetterMCTSAgent(MultiAgentSearchAgent):
 
-    def __init__(self,noofIterations=5000):
+    def __init__(self,noofIterations=500,depth =50):
         self.iterations = noofIterations
+        self.depth = depth
     
     def getUCTValue(self,q,n,N,c):
         return ((q/(n+1) + c * sqrt(math.log(N+1)/(n+1))))
@@ -349,8 +350,14 @@ class MCTSAgent(MultiAgentSearchAgent):
             self.backUpData(t1,delta)
         bestChildAction= self.bestChildAction(t0)
         # print(bestChildAction)
+        # print("******BetterMCTS*****")
+        # print("Parent",t0.reward , t0.noofTimesVisited)
+        # for child in t0.childStates:
+        #     print("Child",child.reward,child.noofTimesVisited, child.action)
         if bestChildAction  not in gameState.getLegalActions(0):
             return random.choice(gameState.getLegalActions(0))
+        if bestChildAction is Directions.STOP:
+            bestChildAction = self.goodChildAction(t0.state)
         return bestChildAction
 
     
@@ -375,18 +382,23 @@ class MCTSAgent(MultiAgentSearchAgent):
     def defaultPolicy(self,state):
         noofAgents = state.getNumAgents()
         isTerminalState =False
-        while  isTerminalState:
+        it =0
+        while  not isTerminalState:
             for i in range(noofAgents):
-                isTerminalState = state.isWin() or state.isLose()
+                it+=1
+                isTerminalState = state.isWin() or state.isLose() or it> self.depth
                 if isTerminalState:
                     break
                 if i>0:
                     randomChildAction = random.choice(state.getLegalActions(i))
                     state = state.generateSuccessor(i,randomChildAction)
-                else:
+                if i==0:
                     childAction = self.goodChildAction(state)
                     state = state.generateSuccessor(i,childAction)
-        return state.getScore()
+        
+        return self.getStateScore(state)
+    
+    
     
     def backUpData(self, node, delta):
         while node is not None:
@@ -427,23 +439,78 @@ class MCTSAgent(MultiAgentSearchAgent):
 
         return legalMoves[chosenIndex]
     def evaluationFunction(self, currentGameState, action):
-        from random import randint
-        from util import manhattanDistance as md
+        successorGameState = currentGameState.generatePacmanSuccessor(action)
+        newPos = successorGameState.getPacmanPosition()
+        currentFood = currentGameState.getFood()
+        newFood = successorGameState.getFood()
+        newGhostStates = successorGameState.getGhostStates()
 
-        # Useful information extracted from GameState (pacman.py)
-        pacmanPos = currentGameState.getPacmanPosition()
-        foodMatrix = currentGameState.getFood()
-        foodList = foodMatrix.asList()
-        successorGameScore = currentGameState.getScore()
+        "* YOUR CODE HERE *"
+        score = 0
+        # de-incentive 'Stop' action
+        if action == 'Stop':
+            return -1000
+        # food score
+        for x in range(len(newFood[:])):
+            for y in range(len(newFood[0][:])):
+                # check with currentFood instead of newFood since new state might have the food eaten.
+                if currentFood[x][y]:
+                    foodDistance = util.manhattanDistance(newPos, (x, y))
+                    # if new position has food
+                    if foodDistance == 0:
+                        score += 100
+                    else:
+                        # as pacman gets closer to food, increase score
+                        score += 1 / (foodDistance * foodDistance)
+        # increase score, as number of food decreases
+        score /= 1 + successorGameState.getNumFood()  # add one to prevent divide by zero error.
+        # capsule score
+        for capsule in successorGameState.getCapsules():
+            capsuleDistance = util.manhattanDistance(newPos, capsule)
+            if capsuleDistance == 0:
+                score += 100
+            else:
+                # as pacman gets closer to capsule, increase score
+                score += 1 / capsuleDistance
+        # ghost score
+        for ghost in newGhostStates:
+            scaredTimer = ghost.scaredTimer
+            ghostDistance = util.manhattanDistance(newPos, ghost.getPosition())
+            if scaredTimer > 0:
+                # incentive for pacman to catch scared ghost.
+                score += 1000 / (1 + ghostDistance * ghostDistance)  # add one to prevent divide by zero error.
+            else:
+                # decrease score as pacman is catchable by ghost.
+                if ghostDistance < 2:
+                    score -= 1000
+        # print("Eval function end time: ", time.time() - starttime)
 
-        # Actual calculations start here
-        numberOfRemainingFood = len(foodList)
+        return score
+    def getStateScore(self,state):
+        foods = state.getFood()
+        pacman_pos = state.getPacmanPosition()          
+        food_proximity = []
+        for food in foods.asList():
+            food_proximity.append(1/math.pow(manhattanDistance(food, pacman_pos),2))
+        dist = max(food_proximity) if len(food_proximity) > 0 else 0
 
-        distanceFromFoods = [md(pacmanPos, newFoodPos) for newFoodPos in foodList]
-        distanceFromClosestFood = 0 if (len(distanceFromFoods) == 0) else min(distanceFromFoods)
+        numofFoodLeft =  state.getNumFood()    
 
-        finalScore = successorGameScore - (50 * numberOfRemainingFood) - (5 * distanceFromClosestFood)  + randint(0,1)
-        return finalScore
+        dist = dist + (5/(1+numofFoodLeft))
+
+        newGhostStates = state.getGhostStates()
+
+        for ghost in newGhostStates:
+            scaredTimer = ghost.scaredTimer
+            ghostDistance = util.manhattanDistance(pacman_pos, ghost.getPosition())
+            if scaredTimer > 0:
+                # incentive for pacman to catch scared ghost.
+                dist += 2 / math.pow((1 +  ghostDistance),2)  # add one to prevent divide by zero error.
+            else:
+                if ghostDistance<2:
+                    dist = dist -1
+
+        return dist
 
 
 class MCTSTreeNode:
@@ -458,15 +525,16 @@ class MCTSTreeNode:
         self.action = action
 
 
-class MonteCarloTreeSearchAgent(MultiAgentSearchAgent):
+class MCTSAgent(MultiAgentSearchAgent):
     """
     Our MCTS Search Agent Class Implementation
     """
-    def __init__(self,noofIterations=1000):
+    def __init__(self,noofIterations=10000,depth =5):
         self.iterations = noofIterations
+        self.depth = depth
     
     def getUCTValue(self,q,n,N,c):
-        return ((q/(n+1) + c * sqrt(2* math.log(N+1)/(n+1))))
+        return ((q/(n+1)) + c * sqrt(math.log(N+1)/(n+1)))
 
     def getAction(self, gameState):
         if not gameState.getLegalActions(0):
@@ -476,20 +544,26 @@ class MonteCarloTreeSearchAgent(MultiAgentSearchAgent):
             t1 = self.treePolicy(t0)
             delta = self.defaultPolicy(t1.state)
             self.backUpData(t1,delta)
+        # print("******MCTS*****")
+        # print("Parent",t0.reward , t0.noofTimesVisited)
+        # for child in t0.childStates:
+        #     print("Child",child.reward,child.noofTimesVisited, child.action)
         bestChildAction= self.bestChildAction(t0)
-        # print(bestChildAction)
         if bestChildAction  not in gameState.getLegalActions(0):
             return random.choice(gameState.getLegalActions(0))
         return bestChildAction
 
     
     def treePolicy(self,node):
-        while  (not node.state.isWin()) and (not node.state.isLose()):
+        while  not self.isTerminalState(node.state):
             if not node.isFullyExpanded:
                 return self.expandNode(node)
             else:
-                node = self.bestChild(node,1)
+                node = self.bestChild(node,4)
         return node
+    
+    def isTerminalState(self,state):
+        return state.isWin() or state.isLose()
     
     def expandNode(self,node):
         randomChildAction = random.choice(node.legalActions)
@@ -504,14 +578,26 @@ class MonteCarloTreeSearchAgent(MultiAgentSearchAgent):
     def defaultPolicy(self,state):
         noofAgents = state.getNumAgents()
         isTerminalState =False
-        while  isTerminalState:
-            for i in range(noofAgents):
-                isTerminalState = state.isWin() or state.isLose()
-                if isTerminalState:
-                    break
-                randomChildAction = random.choice(state.getLegalActions(i))
-                state = state.generateSuccessor(i,randomChildAction)
-        return state.getScore()
+        it=0
+        # while  not isTerminalState:
+        #     for i in range(noofAgents):
+        #         it+=1
+        #         isTerminalState = state.isWin() or state.isLose() or it> self.depth
+        #         if isTerminalState:
+        #             break
+        #         randomChildAction = random.choice(state.getLegalActions(i))
+        #         state = state.generateSuccessor(i,randomChildAction)
+        while not isTerminalState:
+            it = it+1
+            isTerminalState = state.isWin() or state.isLose() or it> self.depth
+            if isTerminalState:
+                break
+            randomChildAction = random.choice(state.getLegalActions(0))
+            state = state.generateSuccessor(0,randomChildAction)
+        # walls = state.getWalls()
+        # score = (self.getStateScore(state)/(walls.width+walls.height))
+        score = self.getStateScore(state)
+        return score
     
     def backUpData(self, node, delta):
         while node is not None:
@@ -539,3 +625,12 @@ class MonteCarloTreeSearchAgent(MultiAgentSearchAgent):
                 maxUCTValue = uctValue
                 bestAction = child.action
         return bestAction
+    
+    def getStateScore(self,state):
+        score =0
+        if state.isWin():
+            score+= 1000
+        if state.isLose():
+            score -= 1
+        score += state.getScore()
+        return score
