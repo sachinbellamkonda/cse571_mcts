@@ -1,35 +1,32 @@
+import random
 import re
 import subprocess
+import sys
+
 import scipy.stats as stats
 
-"""
-    TODO: add timeout if game takes too long.
-"""
-
-noOfSamples = 30  # change to 30 at least
-scores1 = [[]]
-scores2 = [[]]
-scores3 = [[]]
+scores1 = []
+scores2 = []
+scores3 = []
 environments = []
 
-# Mazes
-layouts = [
+# Layouts
+smallLayouts = [
     # 'trickyClassic',
     # 'trappedClassic',
-    # 'testClassic',
+    'testClassic',
     'smallClassic',
     # 'powerClassic',
     # 'originalClassic',
     # 'openClassic',
-    # 'minimaxClassic',
-    #  'mediumClassic',
+    'minimaxClassic',
+    # 'mediumClassic',
     # 'contestClassic',
     # 'capsuleClassic'
 ]
 
-numberOfGhosts = [
-    '2'
-]
+mediumLayouts = []
+largeLayouts = []
 
 
 # Function to execute the external program with different parameters
@@ -39,14 +36,11 @@ def execute_program(args):
     result = subprocess.run(command, capture_output=True, text=True)
     output = result.stdout.strip()
     print(output)
-    score_match = re.search(r'Score: (-?\d+)', output.split('\n')[0])
+    score_match = re.search(r"Score: (-?\d+)", output.split('\n')[0])
 
     if score_match:
         score = float(score_match.group(1))
         return score
-    else:
-        print("No score found.")
-        return 0
 
     print("No score found.")
     return None
@@ -69,43 +63,68 @@ def normalityTest(data):
         print("Sample does not look Gaussian (reject H0)")
 
 
-# Reflex Agent, GreedyAgent, LeftTurnAgent
-i = 0
-for layout in layouts:
-    for ghost in numberOfGhosts:
-        arg = ['-k', ghost, '-l', layout]
-        args1 = ['-p', 'MCTSAgent'] + arg
-        args2 = ['-p', 'BetterMCTSAgent'] + arg
-        args3 = ['-p', 'AlphaBetaAgent'] + arg
-        environments.insert(i, arg)
-        scores1.insert(i, [])
-        scores2.insert(i, [])
-        scores3.insert(i, [])
-        for j in range(noOfSamples):
-            scores1[i].append(execute_program(args1))
-            scores2[i].append(execute_program(args2))
-            scores3[i].append(execute_program(args3))
-        i += 1
+def runSmallEnvs(numberOfEnvs=5):
+    itrIndex = 0
+    smallLayoutsLength = len(smallLayouts)
+    while itrIndex <= numberOfEnvs:
+        smallLayout = smallLayouts[itrIndex % smallLayoutsLength]
+        if itrIndex == numberOfEnvs:
+            break
+        runScript(smallLayout)
+        itrIndex += 1
 
-for i in range(len(environments)):
-    print("Environment: ", i, environments[i])
-    print("Scores: ", i, scores1[i], scores2[i], scores3[i])
+
+def runMediumEnvs(startRange, endRange):
+    for i in range(startRange, endRange + 1):
+        layoutName = '/medium/medium_layout_' + str(i) + '.lay'
+        runScript(layoutName)
+
+
+def runLargeEnvs(startRange, endRange):
+    for i in range(startRange, endRange + 1):
+        layoutName = '/large/large_layout_' + str(i) + '.lay'
+        runScript(layoutName)
+
+
+def runScript( layout):
+    arg = ['-l', layout]
+    args1 = ['-p', 'MCTSAgent'] + arg  # Replace with correct agent
+    args2 = ['-p', 'BetterMCTSAgent'] + arg  # Replace with correct agent
+    args3 = ['-p', 'MinimaxAgent'] + arg  # Replace with correct agent
+    environments.append(arg)
+    scores1.append(execute_program(args1))
+    scores2.append(execute_program(args2))
+    scores3.append(execute_program(args3))
+    print("Environment: ", environments)
+    print("Scores: ", scores1, scores2, scores3)
+
+
+def runTTest():
+    print("Environment: ", environments)
+    print("Scores: ", scores1, scores2, scores3)
 
     print("Agent 1 normality test")
-    normalityTest(scores1[i])
+    normalityTest(scores1)
     print("Agent 2 normality test")
-    normalityTest(scores2[i])
+    normalityTest(scores2)
     print("Agent 3 normality test")
-    normalityTest(scores3[i])
+    normalityTest(scores3)
 
-    t_statistic1, p_value1 = stats.ttest_rel(scores1[i], scores3[i])
-    t_statistic2, p_value2 = stats.ttest_rel(scores2[i], scores3[i])
+    t_statistic1, p_value1 = stats.ttest_rel(scores1, scores3)
+    t_statistic2, p_value2 = stats.ttest_rel(scores2, scores3)
 
     # Define significance level (alpha)
     alphatTest = 0.05
 
     # Determine whether to reject or accept the null hypothesis
+    print("------t-Test Agent 1 vs Agent 3------")
     if p_value1 < alphatTest:
+        print("Reject the null hypothesis: There is a significant difference between the means")
+    else:
+        print("Accept the null hypothesis: There is no significant difference between the means")
+
+    print("------t-Test Agent 2 vs Agent 3------")
+    if p_value2 < alphatTest:
         print("Reject the null hypothesis: There is a significant difference between the means")
     else:
         print("Accept the null hypothesis: There is no significant difference between the means")
@@ -113,3 +132,36 @@ for i in range(len(environments)):
     # Print t-statistic and p-value
     print("t-statistic:", t_statistic1, t_statistic2)
     print("p-value:", p_value1, p_value2)
+
+
+# Not used anywhere
+def saveOutputToFile(func, fileName):
+    output = None
+    # Save the current sys.stdout for later use
+    original_stdout = sys.stdout
+
+    # Define the file path where you want to save the output
+    output_file = f"output/{fileName}.txt"
+
+    # Open the file in write mode, which will clear any existing content
+    with open(output_file, "w") as f:
+        # Redirect sys.stdout to the file
+        sys.stdout = f
+
+        output = func()
+
+    # Reset sys.stdout to its original value
+    sys.stdout = original_stdout
+
+    print("Console output has been saved to", output_file)
+    return output
+
+
+runSmallEnvs()
+runMediumEnvs(1, 25)
+runLargeEnvs(1, 25)
+
+print("----------Final Results----------")
+runTTest()
+print("Environment: ", environments)
+print("Scores: ", scores1, scores2, scores3)
