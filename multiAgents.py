@@ -333,12 +333,12 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
 
 class BetterMCTSAgent(MultiAgentSearchAgent):
 
-    def __init__(self,noofIterations=500,depth =50):
+    def __init__(self,noofIterations=100,depth =50):
         self.iterations = noofIterations
         self.depth = depth
     
     def getUCTValue(self,q,n,N,c):
-        return ((q/(n+1) + c * sqrt(math.log(N+1)/(n+1))))
+        return q/n + c * sqrt(math.log(N)/n)
 
     def getAction(self, gameState):
         if not gameState.getLegalActions(0):
@@ -399,7 +399,6 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
         return self.getStateScore(state)
     
     
-    
     def backUpData(self, node, delta):
         while node is not None:
             node.noofTimesVisited +=1
@@ -426,6 +425,8 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
                 maxUCTValue = uctValue
                 bestAction = child.action
         return bestAction
+    
+
     def goodChildAction(self,state):
         legalMoves = state.getLegalActions(0)
 
@@ -438,6 +439,8 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
         "Add more of your code here if you want to"
 
         return legalMoves[chosenIndex]
+    
+    
     def evaluationFunction(self, currentGameState, action):
         successorGameState = currentGameState.generatePacmanSuccessor(action)
         newPos = successorGameState.getPacmanPosition()
@@ -449,7 +452,7 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
         score = 0
         # de-incentive 'Stop' action
         if action == 'Stop':
-            return -1000
+            return -100
         # food score
         for x in range(len(newFood[:])):
             for y in range(len(newFood[0][:])):
@@ -458,7 +461,7 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
                     foodDistance = util.manhattanDistance(newPos, (x, y))
                     # if new position has food
                     if foodDistance == 0:
-                        score += 100
+                        score += 1
                     else:
                         # as pacman gets closer to food, increase score
                         score += 1 / (foodDistance * foodDistance)
@@ -468,7 +471,7 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
         for capsule in successorGameState.getCapsules():
             capsuleDistance = util.manhattanDistance(newPos, capsule)
             if capsuleDistance == 0:
-                score += 100
+                score += 1
             else:
                 # as pacman gets closer to capsule, increase score
                 score += 1 / capsuleDistance
@@ -478,14 +481,16 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
             ghostDistance = util.manhattanDistance(newPos, ghost.getPosition())
             if scaredTimer > 0:
                 # incentive for pacman to catch scared ghost.
-                score += 1000 / (1 + ghostDistance * ghostDistance)  # add one to prevent divide by zero error.
+                score += 1 / (1 + ghostDistance * ghostDistance)  # add one to prevent divide by zero error.
             else:
                 # decrease score as pacman is catchable by ghost.
                 if ghostDistance < 2:
-                    score -= 1000
+                    score -= 100
         # print("Eval function end time: ", time.time() - starttime)
 
         return score
+    
+
     def getStateScore(self,state):
         foods = state.getFood()
         pacman_pos = state.getPacmanPosition()          
@@ -496,7 +501,7 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
 
         numofFoodLeft =  state.getNumFood()    
 
-        dist = dist + (5/(1+numofFoodLeft))
+        dist = dist + (50/(1+numofFoodLeft))
 
         newGhostStates = state.getGhostStates()
 
@@ -507,10 +512,10 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
                 # incentive for pacman to catch scared ghost.
                 dist += 2 / math.pow((1 +  ghostDistance),2)  # add one to prevent divide by zero error.
             else:
-                if ghostDistance<2:
-                    dist = dist -1
+                if ghostDistance < 2:
+                    dist = dist - 1
 
-        return dist
+        return dist + state.getScore()
 
 
 class MCTSTreeNode:
@@ -529,7 +534,7 @@ class MCTSAgent(MultiAgentSearchAgent):
     """
     Our MCTS Search Agent Class Implementation
     """
-    def __init__(self,noofIterations=10000,depth =5):
+    def __init__(self,noofIterations=100,depth =50):
         self.iterations = noofIterations
         self.depth = depth
     
