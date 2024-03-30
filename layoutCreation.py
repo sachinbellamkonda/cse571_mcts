@@ -1,49 +1,57 @@
 import os
 import random
 
-def generate_layout(size, min_width, max_width, min_height, max_height, min_food_percentage, max_food_percentage, min_ghosts, max_ghosts):
-    width = random.randint(min_width, max_width)
+
+def generate_layout(min_width, max_width, min_height, max_height, min_food_percentage, max_food_percentage,
+                    min_ghosts, max_ghosts, weights, size, i):
+    folder = f"layouts/{size}"
+    os.makedirs(folder, exist_ok=True)
+    f = open(f"layouts/{size}/{size}" + str(i) + ".lay", "w")
+    length = random.randint(min_width, max_width)
     height = random.randint(min_height, max_height)
+    totalBlocks = length * height
+    randomFood = random.randint(min_food_percentage, max_food_percentage)
+    foodItems = int((totalBlocks * randomFood) / 100)
+    itemsLayout = [random.randint(1, length), "%", foodItems]
+    pacmanPos = (random.randint(2, length - 2), random.randint(2, height - 2))
+    noOfGhosts = random.randint(min_ghosts, max_ghosts)
 
-    layout = [[' ' for _ in range(width)] for _ in range(height)]
+    ghostNumbers = noOfGhosts
+    ghostPos = []
+    for i in range(ghostNumbers):
+        indexGhost = (random.randint(2, length - 2), random.randint(2, height - 2))
+        if pacmanPos == indexGhost or indexGhost in ghostPos:
+            while pacmanPos != indexGhost and indexGhost not in ghostPos:
+                indexGhost = (random.randint(1, length), random.randint(1, height))
+        ghostPos.append(indexGhost)
+    for r in range(length):
+        line = ""
+        for c in range(height):
+            if (r, c) == pacmanPos:
+                # print("P",end="")
+                line += "P"
+                continue
+            if (r, c) in ghostPos:
+                # print("G",end="")
+                line += "G"
+                continue
+            if (r == 0 or r == length - 1) or (c == 0 or c == height - 1):
+                # print("%", end="")
+                line += "%"
+            else:
+                randomList = random.choices(itemsLayout, weights=(weights[0], weights[1], weights[2]))
+                index = itemsLayout.index(randomList[0])
+                if index == 0:
+                    # print("o",end="")
+                    line += "o"
+                elif index == 1:
+                    # print("%",end="")
+                    line += "%"
+                else:
+                    # print(".",end="")
+                    line += "."
+        f.write(line + "\n")
 
-    # Place walls
-    for i in range(width):
-        layout[0][i] = layout[height - 1][i] = '%'
-    for i in range(height):
-        layout[i][0] = layout[i][width - 1] = '%'
-    
-    # Place walls randomly inside the layout
-    num_walls = random.randint(10, 30)  # Adjust this range as needed
-    for _ in range(num_walls):
-        x, y = random.randint(1, width - 2), random.randint(1, height - 2)
-        layout[y][x] = '%'
-
-    # Place Pacman
-    pacman_pos = (random.randint(1, height - 2), random.randint(1, width - 2))
-    layout[pacman_pos[0]][pacman_pos[1]] = 'P'
-
-    # Place food items
-    total_blocks = (width - 2) * (height - 2)
-    food_percentage = random.randint(min_food_percentage, max_food_percentage)
-    num_food_items = int((total_blocks * food_percentage) / 100)
-    for _ in range(num_food_items):
-        while True:
-            x, y = random.randint(1, width - 2), random.randint(1, height - 2)
-            if layout[y][x] == ' ':
-                layout[y][x] = '.'
-                break
-
-    # Place ghosts
-    num_ghosts = random.randint(min_ghosts, max_ghosts)
-    for _ in range(num_ghosts):
-        while True:
-            x, y = random.randint(1, width - 2), random.randint(1, height - 2)
-            if layout[y][x] == ' ':
-                layout[y][x] = 'G'
-                break
-
-    return layout
 
 def save_layout(layout, size, index):
     folder = f"layouts/{size}"
@@ -53,15 +61,25 @@ def save_layout(layout, size, index):
         for row in layout:
             f.write(''.join(row) + '\n')
 
+
 sizes = {
-         'large': (20, 35, 10, 20, 60, 80, 1, 4)}
+    'small': (5, 10, 6, 12, 60, 80, 1, 2),
+    'medium': (13, 20, 8, 15, 60, 80, 1, 3),
+    'large': (15, 35, 10, 20, 60, 80, 1, 3)}
 
 for size, params in sizes.items():
     print(f"Generating {size} layouts...")
     min_width, max_width, min_height, max_height, min_food, max_food, min_ghosts, max_ghosts = params
-    for i in range(1, 101):
-        layout = generate_layout(size, min_width, max_width, min_height, max_height, min_food, max_food, min_ghosts, max_ghosts)
-        save_layout(layout, size, i)
+    weights = []
+    if size == 'small':
+        weights = [20, 60, 25]
+    elif size == 'medium':
+        weights = [5, 15, 100]
+    else:
+        weights = [5, 25, 100]
+    for i in range(1, 36):
+        generate_layout(min_width, max_width, min_height, max_height, min_food, max_food, min_ghosts,
+                        max_ghosts, weights, size, i)
         print(f"Layout {i} generated for {size}.")
 
 print("Layout generation completed.")

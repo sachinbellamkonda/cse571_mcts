@@ -8,6 +8,7 @@ import scipy.stats as stats
 scores1 = []
 scores2 = []
 scores3 = []
+scores4 = []
 environments = []
 
 # Layouts
@@ -70,33 +71,47 @@ def runSmallEnvs(numberOfEnvs=5):
         smallLayout = smallLayouts[itrIndex % smallLayoutsLength]
         if itrIndex == numberOfEnvs:
             break
-        runScript(smallLayout)
+        runScript(smallLayout,'small')
         itrIndex += 1
 
+def runSmallEnvis(startRange, endRange):
+    for i in range(startRange, endRange + 1):
+        layoutName = '/small/small' + str(i) + '.lay'
+        runScript(layoutName,'small')
 
 def runMediumEnvs(startRange, endRange):
     for i in range(startRange, endRange + 1):
-        layoutName = '/medium/medium_layout_' + str(i) + '.lay'
-        runScript(layoutName)
+        layoutName = '/medium/medium' + str(i) + '.lay'
+        runScript(layoutName,'medium')
 
 
 def runLargeEnvs(startRange, endRange):
     for i in range(startRange, endRange + 1):
-        layoutName = '/large/large_layout_' + str(i) + '.lay'
-        runScript(layoutName)
+        layoutName = '/big/big' + str(i) + '.lay'
+        runScript(layoutName,'large')
 
 
-def runScript( layout):
+def runScript( layout,size):
     arg = ['-l', layout]
+    if size =='small':
+        timeout = 1*60
+    elif size == 'medium':
+        timeout = 2*60
+    else:
+        timeout = 3*60
+    arg += ['-c']
+    arg += ['--timeout',str(timeout)]
     args1 = ['-p', 'MCTSAgent'] + arg  # Replace with correct agent
     args2 = ['-p', 'BetterMCTSAgent'] + arg  # Replace with correct agent
-    args3 = ['-p', 'MinimaxAgent'] + arg  # Replace with correct agent
+    args3 = ['-p', 'AlphaBetaAgent'] + arg  # Replace with correct agent
+    arge4 = ['-p','ExpectimaxAgent'] + arg
     environments.append(arg)
     scores1.append(execute_program(args1))
     scores2.append(execute_program(args2))
     scores3.append(execute_program(args3))
+    scores4.append(execute_program(arge4))
     print("Environment: ", environments)
-    print("Scores: ", scores1, scores2, scores3)
+    print("Scores: ", scores1, scores2, scores3,scores4)
 
 
 def runTTest():
@@ -158,10 +173,11 @@ def saveOutputToFile(func, fileName):
 
 
 runSmallEnvs()
-runMediumEnvs(1, 25)
-runLargeEnvs(1, 25)
+runSmallEnvis(1,30)
+runMediumEnvs(1, 30)
+runLargeEnvs(1, 30)
 
 print("----------Final Results----------")
 runTTest()
 print("Environment: ", environments)
-print("Scores: ", scores1, scores2, scores3)
+print("Scores: ", scores1, scores2, scores3,scores4)
