@@ -37,7 +37,7 @@ def execute_program(args):
     result = subprocess.run(command, capture_output=True, text=True)
     output = result.stdout.strip()
     print(output)
-    score_match = re.search(r"Score: (-?\d+)", output.split('\n')[0])
+    score_match = re.search(r"Score: (-?\d+)", output.split('\n')[1])
 
     if score_match:
         score = float(score_match.group(1))
@@ -87,7 +87,7 @@ def runMediumEnvs(startRange, endRange):
 
 def runLargeEnvs(startRange, endRange):
     for i in range(startRange, endRange + 1):
-        layoutName = '/big/big' + str(i) + '.lay'
+        layoutName = '/large/large' + str(i) + '.lay'
         runScript(layoutName,'large')
 
 

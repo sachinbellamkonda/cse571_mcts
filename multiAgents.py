@@ -20,6 +20,7 @@ import math
 
 from game import Agent
 
+
 class ReflexAgent(Agent):
     """
     A reflex agent chooses an action at each choice point by examining
@@ -29,7 +30,6 @@ class ReflexAgent(Agent):
     it in any way you see fit, so long as you don't touch our method
     headers.
     """
-
 
     def getAction(self, gameState):
         """
@@ -47,7 +47,7 @@ class ReflexAgent(Agent):
         scores = [self.evaluationFunction(gameState, action) for action in legalMoves]
         bestScore = max(scores)
         bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
-        chosenIndex = random.choice(bestIndices) # Pick randomly among the best
+        chosenIndex = random.choice(bestIndices)  # Pick randomly among the best
 
         "Add more of your code here if you want to"
 
@@ -85,22 +85,23 @@ class ReflexAgent(Agent):
 
         if successorGameState.isWin():
             return float('inf')
-        
+
         newFoodPos = newFood.asList()
         closestFoodDist = float('inf')
         for foodPos in newFoodPos:
-            closestFoodDist = min(manhattanDistance(foodPos,newPos),closestFoodDist)
-        score = - 2* closestFoodDist - 100*len(newFoodPos)
+            closestFoodDist = min(manhattanDistance(foodPos, newPos), closestFoodDist)
+        score = - 2 * closestFoodDist - 100 * len(newFoodPos)
 
         minGhostDistance = float('inf')
         for ghost in newGhostStates:
-            if ghost.scaredTimer ==0:
-                ghostDistance = manhattanDistance(ghost.getPosition(),newPos)
-                if ghostDistance <2:
+            if ghost.scaredTimer == 0:
+                ghostDistance = manhattanDistance(ghost.getPosition(), newPos)
+                if ghostDistance < 2:
                     return float('-inf')
-                minGhostDistance = min(ghostDistance,minGhostDistance)
+                minGhostDistance = min(ghostDistance, minGhostDistance)
 
         return score
+
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -111,6 +112,7 @@ def scoreEvaluationFunction(currentGameState):
     (not reflex agents).
     """
     return currentGameState.getScore()
+
 
 class MultiAgentSearchAgent(Agent):
     """
@@ -127,44 +129,44 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
-        self.index = 0 # Pacman is always agent index 0
+    def __init__(self, evalFn='scoreEvaluationFunction', depth='2'):
+        self.index = 0  # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
+
 
 class MinimaxAgent(MultiAgentSearchAgent):
     """
     Your minimax agent (question 2)
     """
 
-    def minimaxAlgo(self,gameState, depth, maximizingPlayer):
+    def minimaxAlgo(self, gameState, depth, maximizingPlayer):
         if depth == self.depth or gameState.isWin() or gameState.isLose():
             return self.evaluationFunction(gameState)
-        
+
         legalActions = gameState.getLegalActions(maximizingPlayer)
 
         if not legalActions:
             return self.evaluationFunction(gameState)
-        
-        if maximizingPlayer ==0:
+
+        if maximizingPlayer == 0:
             maxEval = float('-inf')
             for action in legalActions:
-                currentValue = self.minimaxAlgo(gameState.generateSuccessor(maximizingPlayer,action),depth, maximizingPlayer+1)
-                maxEval = max(maxEval,currentValue)
+                currentValue = self.minimaxAlgo(gameState.generateSuccessor(maximizingPlayer, action), depth,
+                                                maximizingPlayer + 1)
+                maxEval = max(maxEval, currentValue)
             return maxEval
-        
+
         else:
             minEval = float('inf')
             for action in legalActions:
-                if maximizingPlayer == gameState.getNumAgents()-1:
-                    currentValue = self.minimaxAlgo(gameState.generateSuccessor(maximizingPlayer,action),depth+1, 0)
+                if maximizingPlayer == gameState.getNumAgents() - 1:
+                    currentValue = self.minimaxAlgo(gameState.generateSuccessor(maximizingPlayer, action), depth + 1, 0)
                 else:
-                    currentValue = self.minimaxAlgo(gameState.generateSuccessor(maximizingPlayer,action), depth, maximizingPlayer+1)
-                minEval = min(minEval,currentValue)
+                    currentValue = self.minimaxAlgo(gameState.generateSuccessor(maximizingPlayer, action), depth,
+                                                    maximizingPlayer + 1)
+                minEval = min(minEval, currentValue)
             return minEval
-
-
-
 
     def getAction(self, gameState):
         """
@@ -195,7 +197,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         bestAction = None
         legalActions = gameState.getLegalActions(0)
         for action in legalActions:
-            score = self.minimaxAlgo(gameState.generateSuccessor(0,action), 0, 1)
+            score = self.minimaxAlgo(gameState.generateSuccessor(0, action), 0, 1)
             if score > bestScore:
                 bestScore = score
                 bestAction = action
@@ -203,30 +205,31 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
         util.raiseNotDefined()
 
+
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     Your minimax agent with alpha-beta pruning (question 3)
     """
 
-    def max_player(self, gameState, depth, maximiZingPlayer,alpha, beta):
+    def max_player(self, gameState, depth, maximiZingPlayer, alpha, beta):
         if depth == self.depth or gameState.isWin() or gameState.isLose():
             return self.evaluationFunction(gameState)
-        
+
         legalActions = gameState.getLegalActions(maximiZingPlayer)
 
         if not legalActions:
             return self.evaluationFunction(gameState)
-        
+
         maxEval = float('-inf')
         for action in legalActions:
-            eval = self.min_player(gameState.generateSuccessor(0, action),depth, maximiZingPlayer+1, alpha, beta)
+            eval = self.min_player(gameState.generateSuccessor(0, action), depth, maximiZingPlayer + 1, alpha, beta)
             maxEval = max(maxEval, eval)
             if beta < maxEval:
                 break
             alpha = max(maxEval, alpha)
         return maxEval
 
-    def min_player(self,gameState, depth, maximizingPlayer, alpha, beta):
+    def min_player(self, gameState, depth, maximizingPlayer, alpha, beta):
 
         if gameState.isWin() or gameState.isLose():
             return self.evaluationFunction(gameState)
@@ -237,24 +240,22 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         if not legalActions:
             return self.evaluationFunction(gameState)
-        
+
         for action in legalActions:
-            if maximizingPlayer == (gameState.getNumAgents()-1) :
-                eval = self.max_player(gameState.generateSuccessor(maximizingPlayer,action),depth+1,0,alpha, beta)
-                minEval = min(minEval,eval)
+            if maximizingPlayer == (gameState.getNumAgents() - 1):
+                eval = self.max_player(gameState.generateSuccessor(maximizingPlayer, action), depth + 1, 0, alpha, beta)
+                minEval = min(minEval, eval)
                 if minEval < alpha:
                     break
                 beta = min(beta, minEval)
             else:
-                eval = self.min_player(gameState.generateSuccessor(maximizingPlayer,action),depth,maximizingPlayer+1,alpha, beta)
-                minEval = min(minEval,eval)
+                eval = self.min_player(gameState.generateSuccessor(maximizingPlayer, action), depth,
+                                       maximizingPlayer + 1, alpha, beta)
+                minEval = min(minEval, eval)
                 if minEval < alpha:
                     break
                 beta = min(beta, minEval)
         return minEval
-
-    
-
 
     def getAction(self, gameState):
         """
@@ -267,48 +268,55 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         bestScore = float('-inf')
         legalActions = gameState.getLegalActions(0)
         for action in legalActions:
-            score = self.min_player(gameState.generateSuccessor(0,action), 0, 1,alpha, beta)
+            score = self.min_player(gameState.generateSuccessor(0, action), 0, 1, alpha, beta)
             if score > bestScore:
                 bestScore = score
                 bestAction = action
             if beta < score:
                 break
-            alpha = max(alpha,score)
+            alpha = max(alpha, score)
         return bestAction
         util.raiseNotDefined()
+
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
       Your expectimax agent (question 4)
     """
+
     def max_palyer(self, gameState, depth, maximizingPlayer):
         if depth == self.depth or gameState.isWin() or gameState.isLose():
             return self.evaluationFunction(gameState)
-        
+
         legalActions = gameState.getLegalActions(maximizingPlayer)
-        
+
         maxEval = float('-inf')
         for action in legalActions:
-            currentValue = self.ecpecti_player(gameState.generateSuccessor(maximizingPlayer,action),depth, maximizingPlayer+1)
-            maxEval = max(maxEval,currentValue)
-            
+            currentValue = self.ecpecti_player(gameState.generateSuccessor(maximizingPlayer, action), depth,
+                                               maximizingPlayer + 1)
+            maxEval = max(maxEval, currentValue)
+
         return maxEval
-    
+
     def ecpecti_player(self, gameState, depth, maximizingPlayer):
-        if  gameState.isWin() or gameState.isLose():
+        if gameState.isWin() or gameState.isLose():
             return self.evaluationFunction(gameState)
-        
+
         legalActions = gameState.getLegalActions(maximizingPlayer)
-        
+
         expectiEval = 0
         totalActions = len(legalActions)
         if not totalActions:
             return 0
         for action in legalActions:
-            if maximizingPlayer == (gameState.getNumAgents()-1) :
-                currentExpected = float(self.max_palyer(gameState.generateSuccessor(maximizingPlayer,action),depth+1, 0))/float(totalActions)
+            if maximizingPlayer == (gameState.getNumAgents() - 1):
+                currentExpected = float(
+                    self.max_palyer(gameState.generateSuccessor(maximizingPlayer, action), depth + 1, 0)) / float(
+                    totalActions)
             else:
-                currentExpected = float(self.ecpecti_player(gameState.generateSuccessor(maximizingPlayer,action),depth, maximizingPlayer+1))/float(totalActions)
+                currentExpected = float(
+                    self.ecpecti_player(gameState.generateSuccessor(maximizingPlayer, action), depth,
+                                        maximizingPlayer + 1)) / float(totalActions)
             expectiEval += currentExpected
         return expectiEval
 
@@ -324,123 +332,114 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         bestScore = float('-inf')
         legalActions = gameState.getLegalActions(0)
         for action in legalActions:
-            score = self.ecpecti_player(gameState.generateSuccessor(0,action),0,1)
+            score = self.ecpecti_player(gameState.generateSuccessor(0, action), 0, 1)
             if score > bestScore:
-                bestScore= score
+                bestScore = score
                 bestAction = action
         return bestAction
         util.raiseNotDefined()
 
+
 class BetterMCTSAgent(MultiAgentSearchAgent):
 
-    def __init__(self,noofIterations=100,depth =50):
-        self.iterations = noofIterations
+    def __init__(self, noofIterations=100, depth=50):
+        self.iterations = noofIterations  # choosing the number of iterations
         self.depth = depth
-    
-    def getUCTValue(self,q,n,N,c):
-        return q/n + c * sqrt(math.log(N)/n)
+
+    def getUCTValue(self, q, n, N, c):
+        return q / n + c * sqrt(math.log(N) / n)  # Will return the UCT value of the child
 
     def getAction(self, gameState):
         if not gameState.getLegalActions(0):
             return Directions.STOP
-        t0 = MCTSTreeNode(gameState,None,None)
+        t0 = MCTSTreeNode(gameState, None, None)  # Creating a root Node
         for iter in range(self.iterations):
             t1 = self.treePolicy(t0)
             delta = self.defaultPolicy(t1.state)
-            self.backUpData(t1,delta)
-        bestChildAction= self.bestChildAction(t0)
-        # print(bestChildAction)
-        # print("******BetterMCTS*****")
-        # print("Parent",t0.reward , t0.noofTimesVisited)
-        # for child in t0.childStates:
-        #     print("Child",child.reward,child.noofTimesVisited, child.action)
-        if bestChildAction  not in gameState.getLegalActions(0):
+            self.backUpData(t1, delta)
+        bestChildAction = self.bestChildAction(t0)  # Choosing the best child among all the children
+        if bestChildAction not in gameState.getLegalActions(0):
             return random.choice(gameState.getLegalActions(0))
         if bestChildAction is Directions.STOP:
             bestChildAction = self.goodChildAction(t0.state)
         return bestChildAction
 
-    
-    def treePolicy(self,node):
-        while  (not node.state.isWin()) and (not node.state.isLose()):
+    def treePolicy(self, node):
+        while (not node.state.isWin()) and (not node.state.isLose()):
             if not node.isFullyExpanded:
-                return self.expandNode(node)
+                return self.expandNode(node)  # Expanding the Node
             else:
-                node = self.bestChild(node,2)
+                node = self.bestChild(node, 4)  # Deciding the immediate child
         return node
-    
-    def expandNode(self,node):
+
+    def expandNode(self, node):
         randomChildAction = random.choice(node.legalActions)
-        node.legalActions.remove(randomChildAction)
-        if len(node.legalActions)==0:
+        node.legalActions.remove(randomChildAction)  # choosing a random legal action that has not been used yet
+        if len(node.legalActions) == 0:
             node.isFullyExpanded = True
-        newState = node.state.generateSuccessor(0,randomChildAction)
-        newChildNode = MCTSTreeNode(newState,node,randomChildAction)
-        node.childStates.append(newChildNode)
+        newState = node.state.generateSuccessor(0, randomChildAction)
+        newChildNode = MCTSTreeNode(newState, node, randomChildAction)
+        node.childStates.append(newChildNode)  # Appending the child node into childStates
         return newChildNode
-    
-    def defaultPolicy(self,state):
+
+    def defaultPolicy(self, state):
         noofAgents = state.getNumAgents()
-        isTerminalState =False
-        it =0
-        while  not isTerminalState:
+        isTerminalState = False
+        it = 0
+        while not isTerminalState:
             for i in range(noofAgents):
-                it+=1
-                isTerminalState = state.isWin() or state.isLose() or it> self.depth
+                it += 1
+                isTerminalState = state.isWin() or state.isLose() or it > self.depth
                 if isTerminalState:
                     break
-                if i>0:
+                if i > 0:
                     randomChildAction = random.choice(state.getLegalActions(i))
-                    state = state.generateSuccessor(i,randomChildAction)
-                if i==0:
+                    state = state.generateSuccessor(i, randomChildAction)
+                if i == 0:
                     childAction = self.goodChildAction(state)
-                    state = state.generateSuccessor(i,childAction)
-        
+                    state = state.generateSuccessor(i, childAction)
+
         return self.getStateScore(state)
-    
-    
+
     def backUpData(self, node, delta):
         while node is not None:
-            node.noofTimesVisited +=1
-            node.reward +=  delta
+            node.noofTimesVisited += 1
+            node.reward += delta
             node = node.parent
 
-
-    def bestChild(self,node,c):
+    def bestChild(self, node, c):  # returning the best immediate child
         maxUCTValue = float('-inf')
         bestChild = None
         for child in node.childStates:
-            uctValue = self.getUCTValue(child.reward,child.noofTimesVisited,node.noofTimesVisited,c)
+            uctValue = self.getUCTValue(child.reward, child.noofTimesVisited, node.noofTimesVisited, c)
             if uctValue > maxUCTValue:
                 maxUCTValue = uctValue
                 bestChild = child
         return bestChild
-    
-    def bestChildAction(self,node):
+
+    def bestChildAction(self, node):   # Choosing the best child Action which has best average reward value
         maxUCTValue = float('-inf')
         bestAction = None
         for child in node.childStates:
-            uctValue = self.getUCTValue(child.reward,child.noofTimesVisited,node.noofTimesVisited,0)
+            uctValue = self.getUCTValue(child.reward, child.noofTimesVisited, node.noofTimesVisited, 0)
             if uctValue > maxUCTValue:
                 maxUCTValue = uctValue
                 bestAction = child.action
         return bestAction
-    
 
-    def goodChildAction(self,state):
+    def goodChildAction(self, state):
         legalMoves = state.getLegalActions(0)
 
         # Choose one of the best actions
         scores = [self.evaluationFunction(state, action) for action in legalMoves]
         bestScore = max(scores)
         bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
-        chosenIndex = random.choice(bestIndices) # Pick randomly among the best
+        chosenIndex = random.choice(bestIndices)  # Pick randomly among the best
 
         "Add more of your code here if you want to"
 
         return legalMoves[chosenIndex]
-    
-    
+
     def evaluationFunction(self, currentGameState, action):
         successorGameState = currentGameState.generatePacmanSuccessor(action)
         newPos = successorGameState.getPacmanPosition()
@@ -489,19 +488,18 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
         # print("Eval function end time: ", time.time() - starttime)
 
         return score
-    
 
-    def getStateScore(self,state):
-        foods = state.getFood()
-        pacman_pos = state.getPacmanPosition()          
-        food_proximity = []
+    def getStateScore(self, state):
+        foods = state.getFood()  # get the food positions
+        pacman_pos = state.getPacmanPosition()
+        foodDist = []
         for food in foods.asList():
-            food_proximity.append(1/math.pow(manhattanDistance(food, pacman_pos),2))
-        dist = max(food_proximity) if len(food_proximity) > 0 else 0
+            foodDist.append(1 / math.pow(manhattanDistance(food, pacman_pos), 2))
+        dist = max(foodDist) if len(foodDist) > 0 else 0
 
-        numofFoodLeft =  state.getNumFood()    
+        numofFoodLeft = state.getNumFood()
 
-        dist = dist + (50/(1+numofFoodLeft))
+        dist = dist + (50 / (1 + numofFoodLeft))
 
         newGhostStates = state.getGhostStates()
 
@@ -510,7 +508,7 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
             ghostDistance = util.manhattanDistance(pacman_pos, ghost.getPosition())
             if scaredTimer > 0:
                 # incentive for pacman to catch scared ghost.
-                dist += 2 / math.pow((1 +  ghostDistance),2)  # add one to prevent divide by zero error.
+                dist += 2 / math.pow((1 + ghostDistance), 2)  # add one to prevent divide by zero error.
             else:
                 if ghostDistance < 2:
                     dist = dist - 1
@@ -519,7 +517,7 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
 
 
 class MCTSTreeNode:
-    def __init__(self,state,parent,action):
+    def __init__(self, state, parent, action):
         self.state = state
         self.legalActions = state.getLegalActions(0)
         self.childStates = []
@@ -534,108 +532,92 @@ class MCTSAgent(MultiAgentSearchAgent):
     """
     Our MCTS Search Agent Class Implementation
     """
-    def __init__(self,noofIterations=100,depth =50):
+
+    def __init__(self, noofIterations=100, depth=50):
         self.iterations = noofIterations
         self.depth = depth
-    
-    def getUCTValue(self,q,n,N,c):
-        return ((q/(n+1)) + c * sqrt(math.log(N+1)/(n+1)))
+
+    def getUCTValue(self, q, n, N, c):
+        return (q / n) + c * sqrt(math.log(N) / n)
 
     def getAction(self, gameState):
         if not gameState.getLegalActions(0):
             return Directions.STOP
-        t0 = MCTSTreeNode(gameState,None,None)
+        t0 = MCTSTreeNode(gameState, None, None)
         for iter in range(self.iterations):
             t1 = self.treePolicy(t0)
             delta = self.defaultPolicy(t1.state)
-            self.backUpData(t1,delta)
-        # print("******MCTS*****")
-        # print("Parent",t0.reward , t0.noofTimesVisited)
-        # for child in t0.childStates:
-        #     print("Child",child.reward,child.noofTimesVisited, child.action)
-        bestChildAction= self.bestChildAction(t0)
-        if bestChildAction  not in gameState.getLegalActions(0):
+            self.backUpData(t1, delta)
+        bestChildAction = self.bestChildAction(t0)
+        if bestChildAction not in gameState.getLegalActions(0):
             return random.choice(gameState.getLegalActions(0))
         return bestChildAction
 
-    
-    def treePolicy(self,node):
-        while  not self.isTerminalState(node.state):
+    def treePolicy(self, node):
+        while not self.isTerminalState(node.state):
             if not node.isFullyExpanded:
                 return self.expandNode(node)
             else:
-                node = self.bestChild(node,4)
+                node = self.bestChild(node, 4)
         return node
-    
-    def isTerminalState(self,state):
+
+    def isTerminalState(self, state):
         return state.isWin() or state.isLose()
-    
-    def expandNode(self,node):
+
+    def expandNode(self, node):
         randomChildAction = random.choice(node.legalActions)
         node.legalActions.remove(randomChildAction)
-        if len(node.legalActions)==0:
+        if len(node.legalActions) == 0:
             node.isFullyExpanded = True
-        newState = node.state.generateSuccessor(0,randomChildAction)
-        newChildNode = MCTSTreeNode(newState,node,randomChildAction)
+        newState = node.state.generateSuccessor(0, randomChildAction)
+        newChildNode = MCTSTreeNode(newState, node, randomChildAction)
         node.childStates.append(newChildNode)
         return newChildNode
-    
-    def defaultPolicy(self,state):
-        noofAgents = state.getNumAgents()
-        isTerminalState =False
-        it=0
-        # while  not isTerminalState:
-        #     for i in range(noofAgents):
-        #         it+=1
-        #         isTerminalState = state.isWin() or state.isLose() or it> self.depth
-        #         if isTerminalState:
-        #             break
-        #         randomChildAction = random.choice(state.getLegalActions(i))
-        #         state = state.generateSuccessor(i,randomChildAction)
+
+    def defaultPolicy(self, state):
+        isTerminalState = False
+        it = 0
         while not isTerminalState:
-            it = it+1
-            isTerminalState = state.isWin() or state.isLose() or it> self.depth
+            it = it + 1
+            isTerminalState = state.isWin() or state.isLose() or it > self.depth
             if isTerminalState:
                 break
             randomChildAction = random.choice(state.getLegalActions(0))
-            state = state.generateSuccessor(0,randomChildAction)
-        # walls = state.getWalls()
-        # score = (self.getStateScore(state)/(walls.width+walls.height))
+            state = state.generateSuccessor(0, randomChildAction)
         score = self.getStateScore(state)
         return score
-    
+
     def backUpData(self, node, delta):
         while node is not None:
-            node.noofTimesVisited +=1
-            node.reward +=  delta
+            node.noofTimesVisited += 1
+            node.reward += delta
             node = node.parent
 
-
-    def bestChild(self,node,c):
+    def bestChild(self, node, c):
         maxUCTValue = float('-inf')
         bestChild = None
         for child in node.childStates:
-            uctValue = self.getUCTValue(child.reward,child.noofTimesVisited,node.noofTimesVisited,c)
+            uctValue = self.getUCTValue(child.reward, child.noofTimesVisited, node.noofTimesVisited, c)
             if uctValue > maxUCTValue:
                 maxUCTValue = uctValue
                 bestChild = child
         return bestChild
-    
-    def bestChildAction(self,node):
+
+    def bestChildAction(self, node):
         maxUCTValue = float('-inf')
         bestAction = None
         for child in node.childStates:
-            uctValue = self.getUCTValue(child.reward,child.noofTimesVisited,node.noofTimesVisited,0)
+            uctValue = self.getUCTValue(child.reward, child.noofTimesVisited, node.noofTimesVisited, 0)
             if uctValue > maxUCTValue:
                 maxUCTValue = uctValue
                 bestAction = child.action
         return bestAction
-    
-    def getStateScore(self,state):
-        score =0
+
+    def getStateScore(self, state):
+        score = 0
         if state.isWin():
-            score+= 1000
+            score += 1000
         if state.isLose():
-            score -= 1
+            score -= 1000
         score += state.getScore()
         return score
