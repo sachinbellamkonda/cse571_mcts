@@ -337,27 +337,28 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
                 bestScore = score
                 bestAction = action
         return bestAction
-        util.raiseNotDefined()
 
 
 class BetterMCTSAgent(MultiAgentSearchAgent):
-
-    def __init__(self, noofIterations=100, depth=50):
-        self.iterations = noofIterations  # choosing the number of iterations
+    """
+        Our improved MCTS Search Agent Class Implementation
+    """
+    def __init__(self, noOfIterations=100, depth=50):
+        self.iterations = noOfIterations  # Choose the number of iterations
         self.depth = depth
 
     def getUCTValue(self, q, n, N, c):
-        return q / n + c * sqrt(math.log(N) / n)  # Will return the UCT value of the child
+        return q / n + c * sqrt(math.log(N) / n)  # Returns the UCT value of the node
 
     def getAction(self, gameState):
         if not gameState.getLegalActions(0):
             return Directions.STOP
-        t0 = MCTSTreeNode(gameState, None, None)  # Creating a root Node
-        for iter in range(self.iterations):
-            t1 = self.treePolicy(t0)
-            delta = self.defaultPolicy(t1.state)
-            self.backUpData(t1, delta)
-        bestChildAction = self.bestChildAction(t0)  # Choosing the best child among all the children
+        t0 = MCTSTreeNode(gameState, None, None)  # Create an MCTS root Node
+        for _ in range(self.iterations):
+            t1 = self.treePolicy(t0)  # Selection and Expansion
+            delta = self.improvedPolicy(t1.state)  # Simulation
+            self.backUpData(t1, delta)  # Back-propagation
+        bestChildAction = self.bestChildAction(t0)  # Choose the best child among all the children
         if bestChildAction not in gameState.getLegalActions(0):
             return random.choice(gameState.getLegalActions(0))
         if bestChildAction is Directions.STOP:
@@ -367,66 +368,75 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
     def treePolicy(self, node):
         while (not node.state.isWin()) and (not node.state.isLose()):
             if not node.isFullyExpanded:
-                return self.expandNode(node)  # Expanding the Node
+                return self.expandNode(node)  # Expand the Node
             else:
-                node = self.bestChild(node, 4)  # Deciding the immediate child
+                node = self.bestChild(node, 4)  # Pick the best child if fully expanded
         return node
 
     def expandNode(self, node):
         randomChildAction = random.choice(node.legalActions)
-        node.legalActions.remove(randomChildAction)  # choosing a random legal action that has not been used yet
+        node.legalActions.remove(randomChildAction)  # Choose a random legal action that has not been used yet
         if len(node.legalActions) == 0:
             node.isFullyExpanded = True
         newState = node.state.generateSuccessor(0, randomChildAction)
         newChildNode = MCTSTreeNode(newState, node, randomChildAction)
-        node.childStates.append(newChildNode)  # Appending the child node into childStates
+        node.childStates.append(newChildNode)  # Append the child node into childStates
         return newChildNode
 
-    def defaultPolicy(self, state):
+    # Simulation policy
+    def improvedPolicy(self, state):
         noofAgents = state.getNumAgents()
         isTerminalState = False
         it = 0
         while not isTerminalState:
             for i in range(noofAgents):
                 it += 1
-                isTerminalState = state.isWin() or state.isLose() or it > self.depth
+                isTerminalState = (
+                    state.isWin() or
+                    state.isLose() or
+                    it > self.depth  # Limit the depth to remain within computational budget
+                )
                 if isTerminalState:
                     break
-                if i > 0:
+                if i > 0:  # Simulate ghost actions
                     randomChildAction = random.choice(state.getLegalActions(i))
                     state = state.generateSuccessor(i, randomChildAction)
-                if i == 0:
+                if i == 0:  # Simulate Pacman action
                     childAction = self.goodChildAction(state)
                     state = state.generateSuccessor(i, childAction)
 
         return self.getStateScore(state)
 
+    # Back-propagates reward.
     def backUpData(self, node, delta):
         while node is not None:
             node.noofTimesVisited += 1
             node.reward += delta
             node = node.parent
 
-    def bestChild(self, node, c):  # returning the best immediate child
+    # Returns the best immediate child
+    def bestChild(self, node, c):
         maxUCTValue = float('-inf')
         bestChild = None
         for child in node.childStates:
-            uctValue = self.getUCTValue(child.reward, child.noofTimesVisited, node.noofTimesVisited, c)
+            uctValue = self.getUCTValue(child.reward, child.noOfTimesVisited, node.noOfTimesVisited, c)
             if uctValue > maxUCTValue:
                 maxUCTValue = uctValue
                 bestChild = child
         return bestChild
 
-    def bestChildAction(self, node):   # Choosing the best child Action which has best average reward value
+    # Chooses the best child Action which has best average reward value
+    def bestChildAction(self, node):
         maxUCTValue = float('-inf')
         bestAction = None
         for child in node.childStates:
-            uctValue = self.getUCTValue(child.reward, child.noofTimesVisited, node.noofTimesVisited, 0)
+            uctValue = self.getUCTValue(child.reward, child.noOfTimesVisited, node.noOfTimesVisited, 0)
             if uctValue > maxUCTValue:
                 maxUCTValue = uctValue
                 bestAction = child.action
         return bestAction
 
+    # Chooses the best child action to take in the simulation.
     def goodChildAction(self, state):
         legalMoves = state.getLegalActions(0)
 
@@ -436,10 +446,9 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
         bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
         chosenIndex = random.choice(bestIndices)  # Pick randomly among the best
 
-        "Add more of your code here if you want to"
-
         return legalMoves[chosenIndex]
 
+    # Score evaluation function for a given state and action.
     def evaluationFunction(self, currentGameState, action):
         successorGameState = currentGameState.generatePacmanSuccessor(action)
         newPos = successorGameState.getPacmanPosition()
@@ -447,7 +456,6 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
         newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
 
-        "* YOUR CODE HERE *"
         score = 0
         # de-incentive 'Stop' action
         if action == 'Stop':
@@ -485,22 +493,24 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
                 # decrease score as pacman is catchable by ghost.
                 if ghostDistance < 2:
                     score -= 100
-        # print("Eval function end time: ", time.time() - starttime)
 
         return score
 
+    # Score evaluation function for a given state. Gets the "terminal" utility value after the depth limit.
     def getStateScore(self, state):
+        # Food heuristic
         foods = state.getFood()  # get the food positions
         pacman_pos = state.getPacmanPosition()
         foodDist = []
         for food in foods.asList():
             foodDist.append(1 / math.pow(manhattanDistance(food, pacman_pos), 2))
-        dist = max(foodDist) if len(foodDist) > 0 else 0
+        score = max(foodDist) if len(foodDist) > 0 else 0
 
-        numofFoodLeft = state.getNumFood()
+        numOfFoodLeft = state.getNumFood()
 
-        dist = dist + (50 / (1 + numofFoodLeft))
+        score = score + (50 / (1 + numOfFoodLeft))
 
+        # Ghost heuristic
         newGhostStates = state.getGhostStates()
 
         for ghost in newGhostStates:
@@ -508,21 +518,25 @@ class BetterMCTSAgent(MultiAgentSearchAgent):
             ghostDistance = util.manhattanDistance(pacman_pos, ghost.getPosition())
             if scaredTimer > 0:
                 # incentive for pacman to catch scared ghost.
-                dist += 2 / math.pow((1 + ghostDistance), 2)  # add one to prevent divide by zero error.
+                score += 2 / math.pow((1 + ghostDistance), 2)  # add one to prevent divide by zero error.
             else:
                 if ghostDistance < 2:
-                    dist = dist - 1
+                    score = score - 1
 
-        return dist + state.getScore()
+        # Add state heuristic with the state utility
+        return score + state.getScore()
 
 
 class MCTSTreeNode:
+    """
+        MCTS Tree Node class
+    """
     def __init__(self, state, parent, action):
         self.state = state
         self.legalActions = state.getLegalActions(0)
         self.childStates = []
         self.parent = parent
-        self.noofTimesVisited = 0
+        self.noOfTimesVisited = 0
         self.reward = 0.0
         self.isFullyExpanded = False
         self.action = action
@@ -530,25 +544,25 @@ class MCTSTreeNode:
 
 class MCTSAgent(MultiAgentSearchAgent):
     """
-    Our MCTS Search Agent Class Implementation
+        Our MCTS Search Agent Class Implementation
     """
 
-    def __init__(self, noofIterations=100, depth=50):
-        self.iterations = noofIterations
+    def __init__(self, noOfIterations=100, depth=50):
+        self.iterations = noOfIterations  # Choose the number of iterations
         self.depth = depth
 
     def getUCTValue(self, q, n, N, c):
-        return (q / n) + c * sqrt(math.log(N) / n)
+        return (q / n) + c * sqrt(math.log(N) / n)  # Returns the UCT value of the node
 
     def getAction(self, gameState):
         if not gameState.getLegalActions(0):
             return Directions.STOP
-        t0 = MCTSTreeNode(gameState, None, None)
-        for iter in range(self.iterations):
-            t1 = self.treePolicy(t0)
-            delta = self.defaultPolicy(t1.state)
-            self.backUpData(t1, delta)
-        bestChildAction = self.bestChildAction(t0)
+        t0 = MCTSTreeNode(gameState, None, None)  # Create an MCTS root Node
+        for _ in range(self.iterations):
+            t1 = self.treePolicy(t0)  # Selection and Expansion
+            delta = self.defaultPolicy(t1.state)  # Simulation
+            self.backUpData(t1, delta)  # Back-propagation
+        bestChildAction = self.bestChildAction(t0)  # Choose the best child among all the children
         if bestChildAction not in gameState.getLegalActions(0):
             return random.choice(gameState.getLegalActions(0))
         return bestChildAction
@@ -556,24 +570,25 @@ class MCTSAgent(MultiAgentSearchAgent):
     def treePolicy(self, node):
         while not self.isTerminalState(node.state):
             if not node.isFullyExpanded:
-                return self.expandNode(node)
+                return self.expandNode(node)  # Expand the Node
             else:
-                node = self.bestChild(node, 4)
+                node = self.bestChild(node, 4)  # Pick the best child if fully expanded
         return node
 
     def isTerminalState(self, state):
         return state.isWin() or state.isLose()
 
     def expandNode(self, node):
-        randomChildAction = random.choice(node.legalActions)
+        randomChildAction = random.choice(node.legalActions)  # Choose a random legal action that has not been used yet.
         node.legalActions.remove(randomChildAction)
         if len(node.legalActions) == 0:
             node.isFullyExpanded = True
         newState = node.state.generateSuccessor(0, randomChildAction)
         newChildNode = MCTSTreeNode(newState, node, randomChildAction)
-        node.childStates.append(newChildNode)
+        node.childStates.append(newChildNode)  # Append the child node into childStates
         return newChildNode
 
+    # Simulation policy
     def defaultPolicy(self, state):
         isTerminalState = False
         it = 0
@@ -582,37 +597,41 @@ class MCTSAgent(MultiAgentSearchAgent):
             isTerminalState = state.isWin() or state.isLose() or it > self.depth
             if isTerminalState:
                 break
-            randomChildAction = random.choice(state.getLegalActions(0))
+            randomChildAction = random.choice(state.getLegalActions(0))  # Simulate using random action selection
             state = state.generateSuccessor(0, randomChildAction)
         score = self.getStateScore(state)
         return score
 
+    # Back-propagates reward.
     def backUpData(self, node, delta):
         while node is not None:
             node.noofTimesVisited += 1
             node.reward += delta
             node = node.parent
 
+    # Returns the best immediate child
     def bestChild(self, node, c):
         maxUCTValue = float('-inf')
         bestChild = None
         for child in node.childStates:
-            uctValue = self.getUCTValue(child.reward, child.noofTimesVisited, node.noofTimesVisited, c)
+            uctValue = self.getUCTValue(child.reward, child.noOfTimesVisited, node.noOfTimesVisited, c)
             if uctValue > maxUCTValue:
                 maxUCTValue = uctValue
                 bestChild = child
         return bestChild
 
+    # Chooses the best child Action which has best average reward value
     def bestChildAction(self, node):
         maxUCTValue = float('-inf')
         bestAction = None
         for child in node.childStates:
-            uctValue = self.getUCTValue(child.reward, child.noofTimesVisited, node.noofTimesVisited, 0)
+            uctValue = self.getUCTValue(child.reward, child.noOfTimesVisited, node.noOfTimesVisited, 0)
             if uctValue > maxUCTValue:
                 maxUCTValue = uctValue
                 bestAction = child.action
         return bestAction
 
+    # Score evaluation function for a given state. Gets the "terminal" utility value after the depth limit.
     def getStateScore(self, state):
         score = 0
         if state.isWin():
